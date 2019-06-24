@@ -81,7 +81,23 @@ class TwoLayerNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
-
+        """
+        X: (N, D)
+        y: (N,)
+        W1: (D, H)  b1: (H,)
+        first_layer_output: (N, H)
+        ReLU_output: (N, H)
+        W2: (H, C)  b2: (C,)
+        second_layer_output: (N,C)
+        scores: (N,C)
+        """
+        first_layer_output = np.dot(X,W1) + b1[np.newaxis,:]
+        ReLU_output = first_layer_output * (first_layer_output > 0).astype(int)
+        #print(ReLU_output)
+        second_layer_output = np.dot(ReLU_output,W2) + b2[np.newaxis,:]
+        #print(b2[np.newaxis,:].shape)
+        scores = second_layer_output
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # If the targets are not given then jump out, we're done
@@ -99,7 +115,15 @@ class TwoLayerNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
-
+        num_train = X.shape[0]
+        logC = np.max(scores,axis = 1)[:,np.newaxis]
+        scores_adj = scores - logC
+        softmax = np.exp(scores_adj) / np.sum(np.exp(scores_adj),axis = 1,keepdims = True)
+        loss = np.sum(-np.log(softmax[np.arange(num_train),y]))
+        loss /= num_train
+        # Add the L2 regularization for W1 and W2
+        loss += (reg * np.sum(W2 * W2) + reg * np.sum(W1 * W1)) 
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # Backward pass: compute gradients
@@ -112,7 +136,22 @@ class TwoLayerNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
-
+        softmax[np.arange(num_train),y] -= 1
+        dW2 = np.dot(ReLU_output.T,softmax)
+        dW2 /= num_train   # dW2: (H, C)
+        db2 = np.sum(softmax,axis = 0) / num_train
+        
+        dReLU_output = np.dot(softmax,W2.T)
+        dfirst_layer_output = dReLU_output * (first_layer_output > 0)
+        dW1 = X.T.dot(dfirst_layer_output) / num_train
+        db1 = np.sum(dfirst_layer_output,axis = 0) / num_train
+        
+        
+        # Add the the L2 regularization gradient
+        dW2 += 2 * reg * W2
+        dW1 += 2 * reg * W1
+        
+        grads = {'W1':dW1, 'b1':db1, 'W2':dW2, 'b2':db2}
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         return loss, grads
@@ -157,6 +196,9 @@ class TwoLayerNet(object):
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             pass
+            indices = np.random.choice(num_train,batch_size)
+            X_batch = X[indices]
+            y_batch = y[indices]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -173,6 +215,11 @@ class TwoLayerNet(object):
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             pass
+            #learning_rate *= np.power(learning_rate_decay,it)
+            self.params['W2'] -= learning_rate * grads['W2']
+            self.params['b2'] -= learning_rate * grads['b2']
+            self.params['W1'] -= learning_rate * grads['W1']
+            self.params['b1'] -= learning_rate * grads['b1']
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -219,6 +266,7 @@ class TwoLayerNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        y_pred = np.argmax(self.loss(X),axis = 1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
