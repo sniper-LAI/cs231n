@@ -28,6 +28,10 @@ def affine_forward(x, w, b):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    N = x.shape[0]
+    D = int(x.size / N) #Transform D into int data type
+    #print(D)
+    out = np.dot(x.reshape(N,D),w) + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -61,7 +65,12 @@ def affine_backward(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
-
+    N = x.shape[0]
+    D = int(x.size / N)
+    dw = np.dot(x.reshape(N,D).T,dout)
+    dx = np.dot(dout,w.T).reshape(x.shape)
+    db = np.sum(dout,axis = 0) #Note: remember this expression!!!
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -87,6 +96,7 @@ def relu_forward(x):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    out = x * ((x > 0).astype(int))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -114,6 +124,7 @@ def relu_backward(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    dx = dout * ((x > 0).astype(int))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
