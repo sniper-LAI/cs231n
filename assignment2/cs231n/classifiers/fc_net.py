@@ -196,7 +196,20 @@ class FullyConnectedNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
-
+        for index in range(self.num_layers):
+            if index == 0:
+                self.params['W'+str(index+1)] = np.random.normal(loc = 0.0,scale = weight_scale,size = 
+                                                                 (input_dim,hidden_dims[index]))
+                self.params['b'+str(index+1)] = np.zeros(hidden_dims[index])
+            elif index == (self.num_layers - 1):
+                self.params['W'+str(index+1)] = np.random.normal(loc = 0.0,scale = weight_scale,size = 
+                                                                 (hidden_dims[index-1],num_classes))
+                self.params['b'+str(index+1)] = np.zeros(num_classes)
+            else:
+                self.params['W'+str(index+1)] = np.random.normal(loc = 0.0,scale = weight_scale,size = 
+                                                                 (hidden_dims[index-1],hidden_dims[index]))
+                self.params['b'+str(index+1)] = np.zeros(hidden_dims[index])
+                
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -259,6 +272,19 @@ class FullyConnectedNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        layer_output, caches = [None] * self.num_layers, [None] * self.num_layers
+        #layer_output[0] = X
+        for index in range(self.num_layers):
+            W, b = self.params['W'+str(index+1)], self.params['b'+str(index+1)]
+            #The last layer, output layer
+            if index == (self.num_layers - 1):
+                layer_output[index], caches[index] = affine_forward(layer_output[index-1],W,b)
+            #The input layer
+            elif index == 0:
+                layer_output[index], caches[index] = affine_relu_forward(X,W,b)
+            else:
+                layer_output[index], caches[index] = affine_relu_forward(layer_output[index-1],W,b)
+        scores = layer_output[-1]
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -286,7 +312,27 @@ class FullyConnectedNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
-
+        loss, dscores = softmax_loss(scores,y)
+        dlayer_out = [None] * self.num_layers
+        for index in range(self.num_layers-1,-1,-1):
+            W, b = self.params['W'+str(index+1)], self.params['b'+str(index+1)]
+            if index == (self.num_layers-1):
+                dlayer_out[index], grads['W'+str(index+1)], grads['b'+str(index+1)] = affine_backward(dscores, caches[index])
+                #Add the L2 regularization term
+#                 loss += 0.5 * self.reg * np.sum(W * W)
+#                 grads['W'+str(index+1)] += self.reg * W
+            elif index == 0:
+                dx, grads['W'+str(index+1)], grads['b'+str(index+1)] = affine_relu_backward(dlayer_out[index+1], caches[index])
+                #Add the L2 regularization term
+#                 loss += 0.5 * self.reg * np.sum(W * W)
+#                 grads['W'+str(index+1)] += self.reg * W
+            else:
+                dlayer_out[index], grads['W'+str(index+1)], grads['b'+str(index+1)] = affine_relu_backward(dlayer_out[index+1],
+                                                                                                           caches[index])
+            #Add the L2 regularization term
+            loss += 0.5 * self.reg * np.sum(W * W)
+            grads['W'+str(index+1)] += self.reg * W
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
