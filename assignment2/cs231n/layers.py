@@ -205,6 +205,20 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+#         minib_mean = np.sum(X,axis = 0) / N
+#         minib_var = np.sum((X - minib_mean) ** 2,axis = 0) / N
+        # np.mean and np.var could be faster and useful
+        minib_mean = np.mean(x,axis = 0)
+        minib_var = np.var(x,axis = 0)
+        nor_x = (x - minib_mean) / np.sqrt(minib_var + eps)
+        out = gamma * nor_x + beta
+        
+        # Update the running time value
+        running_mean = momentum * running_mean + (1 - momentum) * minib_mean
+        running_var = momentum * running_var + (1 - momentum) * minib_var
+        
+        # Store the parameters needed in backward pass
+        cache = (x, gamma, beta, minib_mean, minib_var, eps)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -220,6 +234,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        nor_x = (x - running_mean) / np.sqrt(running_var + eps)
+        out = gamma * nor_x + beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -262,6 +278,21 @@ def batchnorm_backward(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    # Load the intermediate parameters from cache
+    x, gamma, beta, minib_mean, minib_var, eps = cache
+    
+    nor_x = (x - minib_mean) / np.sqrt(minib_var + eps)
+    dgamma = np.sum(dout * nor_x, axis = 0)
+    dbeta = np.sum(dout, axis = 0)
+    
+    # The following calculation will use the simplied version instead of computational graph
+    # So the calculation time would be the same
+    N = x.shape[0]
+    dnor_x = dout * gamma
+    dminib_var = np.sum(-0.5 * dnor_x * (x - minib_mean) * ((minib_var + eps) ** (- 3 / 2)),axis = 0)
+    dminib_mean = np.sum(-1 / np.sqrt(minib_var + eps) * dnor_x,
+                         axis = 0) + dminib_var * np.sum(-2 * (x - minib_mean),axis = 0) / N
+    dx = dnor_x * (1 / np.sqrt(minib_var + eps)) + 2 * dminib_var * (x - minib_mean) / N + dminib_mean / N
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -297,6 +328,21 @@ def batchnorm_backward_alt(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    # Load the intermediate parameters from cache
+    x, gamma, beta, minib_mean, minib_var, eps = cache
+    
+    nor_x = (x - minib_mean) / np.sqrt(minib_var + eps)
+    dgamma = np.sum(dout * nor_x, axis = 0)
+    dbeta = np.sum(dout, axis = 0)
+    
+    # The following calculation will use the simplied version instead of computational graph
+    # So the calculation time would be the same
+    N = x.shape[0]
+    dnor_x = dout * gamma
+    dminib_var = np.sum(-0.5 * dnor_x * (x - minib_mean) * ((minib_var + eps) ** (- 3 / 2)),axis = 0)
+    dminib_mean = np.sum(-1 / np.sqrt(minib_var + eps) * dnor_x,
+                         axis = 0) + dminib_var * np.sum(-2 * (x - minib_mean),axis = 0) / N
+    dx = dnor_x * (1 / np.sqrt(minib_var + eps)) + 2 * dminib_var * (x - minib_mean) / N + dminib_mean / N
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
