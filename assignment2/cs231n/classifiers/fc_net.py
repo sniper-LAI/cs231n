@@ -282,19 +282,25 @@ class FullyConnectedNet(object):
 
         pass
         layer_output, caches = [None] * self.num_layers, [None] * self.num_layers
+        if self.use_dropout:
+            dropout_caches = [None] * self.num_layers
         #layer_output[0] = X
         for index in range(self.num_layers):
             W, b = self.params['W'+str(index+1)], self.params['b'+str(index+1)]
-            #The last layer, output layer
+            
+            #The last layer, output layer, without ReLu layer
             if index == (self.num_layers - 1):
                 layer_output[index], caches[index] = affine_forward(layer_output[index-1],W,b)
-            #The input layer
+            #The input layer, with ReLu layer
             elif index == 0:
                 if self.normalization == 'batchnorm':
                     gamma, beta = self.params['gamma'+str(index+1)], self.params['beta'+str(index+1)]
-                    layer_output[index], caches[index] = affine_bn_relu_forward(X,W,b,gamma,beta,self.bn_params[index])
+                    layer_output[index], caches[index] = affine_bn_relu_forward(X,W,b,gamma,beta, self.bn_params[index])
                 else:
                     layer_output[index], caches[index] = affine_relu_forward(X,W,b)
+                if self.use_dropout:
+                    layer_output[index], dropout_caches[index] = dropout_forward(layer_output[index], self.dropout_param)
+            #With ReLu layer
             else:
                 if self.normalization == 'batchnorm':
                     gamma, beta = self.params['gamma'+str(index+1)], self.params['beta'+str(index+1)]
@@ -303,6 +309,8 @@ class FullyConnectedNet(object):
                 else:
                     layer_output[index], caches[index] = affine_relu_forward(layer_output[index-1],W,b)
                 # layer_output[index], caches[index] = affine_relu_forward(layer_output[index-1],W,b)
+                if self.use_dropout:
+                    layer_output[index], dropout_caches[index] = dropout_forward(layer_output[index], self.dropout_param)
         scores = layer_output[-1]
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -341,6 +349,8 @@ class FullyConnectedNet(object):
 #                 loss += 0.5 * self.reg * np.sum(W * W)
 #                 grads['W'+str(index+1)] += self.reg * W
             elif index == 0:
+                if self.use_dropout:
+                    dlayer_out[index+1] = dropout_backward(dlayer_out[index+1], dropout_caches[index])
                 if self.normalization == 'batchnorm':
                     dx, grads['W'+str(index+1)], grads['b'+str(index+1)], grads['gamma'+str(index+1)],\
                     grads['beta'+str(index+1)]= affine_bn_relu_backward(dlayer_out[index+1], caches[index])
@@ -351,6 +361,8 @@ class FullyConnectedNet(object):
 #                 loss += 0.5 * self.reg * np.sum(W * W)
 #                 grads['W'+str(index+1)] += self.reg * W
             else:
+                if self.use_dropout:
+                    dlayer_out[index+1] = dropout_backward(dlayer_out[index+1], dropout_caches[index])
                 if self.normalization == 'batchnorm':
                     dlayer_out[index], grads['W'+str(index+1)], grads['b'+str(index+1)], grads['gamma'+str(index+1)],\
                     grads['beta'+str(index+1)] =  affine_bn_relu_backward(dlayer_out[index+1], caches[index])

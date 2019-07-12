@@ -389,6 +389,20 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+    x = x.T
+    minib_mean = np.mean(x,axis = 0)
+    minib_var = np.var(x,axis = 0)
+    nor_x = (x - minib_mean) / np.sqrt(minib_var + eps)
+    nor_x, x = nor_x.T, x.T
+    out = gamma * nor_x + beta
+    
+    # For layer normalization, we don't need to update a running time mean and var
+    # Update the running time value
+#     running_mean = momentum * running_mean + (1 - momentum) * minib_mean
+#     running_var = momentum * running_var + (1 - momentum) * minib_var
+    
+    # Store the parameters needed in backward pass
+    cache = (x, gamma, beta, minib_mean, minib_var, eps)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -424,7 +438,26 @@ def layernorm_backward(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
-
+    # Load the intermediate parameters from cache
+    x, gamma, beta, minib_mean, minib_var, eps = cache
+    
+    nor_x = (x.T - minib_mean) / np.sqrt(minib_var + eps) #(D,N)
+    dgamma = np.sum(dout * nor_x.T, axis = 0)
+    dbeta = np.sum(dout, axis = 0)
+    
+    # The following calculation will use the simplied version instead of computational graph
+    # So the calculation time would be the same
+    x = x.T
+    N = x.shape[0]
+    dnor_x = dout * gamma
+    dnor_x = dnor_x.T
+    dminib_var = np.sum(-0.5 * dnor_x * (x - minib_mean) * ((minib_var + eps) ** (- 3 / 2)),axis = 0)
+    dminib_mean = np.sum(-1 / np.sqrt(minib_var + eps) * dnor_x,
+                         axis = 0) + dminib_var * np.sum(-2 * (x - minib_mean),axis = 0) / N
+    dx = dnor_x * (1 / np.sqrt(minib_var + eps)) + 2 * dminib_var * (x - minib_mean) / N + dminib_mean / N
+    
+    dx = dx.T
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -442,7 +475,7 @@ def dropout_forward(x, dropout_param):
       - p: Dropout parameter. We keep each neuron output with probability p.
       - mode: 'test' or 'train'. If the mode is train, then perform dropout;
         if the mode is test, then just return the input.
-      - seed: Seed for the random number generator. Passing seed makes this
+      - seed: Seed for the random number gener3ator. Passing seed makes this
         function deterministic, which is needed for gradient checking but not
         in real networks.
 
@@ -473,6 +506,9 @@ def dropout_forward(x, dropout_param):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        mask = (np.random.rand(*x.shape) < p) / p
+        #print('The shape of mask is:',mask.shape)
+        out = x * mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -485,6 +521,7 @@ def dropout_forward(x, dropout_param):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        out = x
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -516,6 +553,8 @@ def dropout_backward(dout, cache):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        dropout_param, mask = cache
+        dx = mask * dout
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
