@@ -143,6 +143,27 @@ class CaptioningRNN(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        ## First step
+        # Initial hidden state h0
+        #h0 = np.zeros((N,H))
+        # Compute the initial hidden state, shape (N, H)
+        h0, cache_affine_transformation = affine_forward(features, W_proj, b_proj)
+        ## Second step, shape (N, T, W)
+        word_embed, cache_word_embed = word_embedding_forward(captions_in, W_embed)
+        ## Third Step, shape (N, T, H)
+        if self.cell_type == 'rnn':
+            #h = np.zeros((N,T,H))
+            h, cache_vanilla_rnn = rnn_forward(word_embed, h0, Wx, Wh, b)
+        ## Fourth Step, shape (N, T, V)
+        scores, cache_scores = temporal_affine_forward(h, W_vocab, b_vocab)
+        ## Final Step
+        loss, dscores = temporal_softmax_loss(scores, captions_out, mask, verbose=False)
+        
+        ## Now we begin to compute the gradient
+        dh, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dscores, cache_scores)
+        dword_embed, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, cache_vanilla_rnn)
+        grads['W_embed'] = word_embedding_backward(dword_embed, cache_word_embed)
+        dfeatures, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, cache_affine_transformation)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -212,7 +233,44 @@ class CaptioningRNN(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         pass
+        if self.cell_type == 'rnn':
+            h0, cache_affine_transformation = affine_forward(features, W_proj, b_proj)
+            x = [self._start] * N
+            prev_h = h0
+            captions[:,0] = x
+            for t in range(1,max_length):
+                word_embed, cache_word_embed = word_embedding_forward(x, W_embed)
+                # next_h: (N, H)
+                next_h, cache_word_embed = rnn_step_forward(word_embed, prev_h, Wx, Wh, b)
+                # h_affine: (N, V)
+                h_affine, cache_h_affine = affine_forward(next_h, W_vocab, b_vocab)
+                captions[:,t] = np.argmax(h_affine, axis = 1)
+                x = np.argmax(h_affine, axis = 1)
+                prev_h = next_h
 
+#         affine, cache_affine = affine_forward(features, W_proj, b_proj)
+#         prev_h = affine
+#         captions[:,0] = self._start
+#         x = [self._start] * N
+#         if self.cell_type == 'lstm':
+#             prev_c = np.zeros(prev_h.shape)
+#         # for each step
+#         for t in range(1,max_length):
+#             # word embed
+#             embed, chahe_embed = word_embedding_forward(x, W_embed)
+#             # rnn step
+#             if self.cell_type == 'rnn':
+#                 next_h, cache = rnn_step_forward(embed, prev_h, Wx, Wh, b)
+#             elif self.cell_type == 'lstm':
+#                 next_h, next_c, cache = lstm_step_forward(embed, prev_h, prev_c, Wx, Wh, b)
+#                 prev_c = next_c
+#             prev_h = next_h
+#             # affine
+#             h_affine, cache_h_affine = affine_forward(next_h, W_vocab, b_vocab)
+#             # max
+#             x = np.argmax(h_affine, axis=1)
+#             captions[:,t] = x
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
