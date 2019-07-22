@@ -154,6 +154,8 @@ class CaptioningRNN(object):
         if self.cell_type == 'rnn':
             #h = np.zeros((N,T,H))
             h, cache_vanilla_rnn = rnn_forward(word_embed, h0, Wx, Wh, b)
+        elif self.cell_type == 'lstm':
+            h, cache_lstm_rnn = lstm_forward(word_embed, h0, Wx, Wh, b)
         ## Fourth Step, shape (N, T, V)
         scores, cache_scores = temporal_affine_forward(h, W_vocab, b_vocab)
         ## Final Step
@@ -161,9 +163,13 @@ class CaptioningRNN(object):
         
         ## Now we begin to compute the gradient
         dh, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dscores, cache_scores)
-        dword_embed, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, cache_vanilla_rnn)
+        if self.cell_type == 'rnn':
+            #h = np.zeros((N,T,H))
+            dword_embed, dh, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, cache_vanilla_rnn)
+        elif self.cell_type == 'lstm':
+            dword_embed, dh, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dh, cache_lstm_rnn)
         grads['W_embed'] = word_embedding_backward(dword_embed, cache_word_embed)
-        dfeatures, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, cache_affine_transformation)
+        dfeatures, grads['W_proj'], grads['b_proj'] = affine_backward(dh, cache_affine_transformation)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -247,30 +253,24 @@ class CaptioningRNN(object):
                 captions[:,t] = np.argmax(h_affine, axis = 1)
                 x = np.argmax(h_affine, axis = 1)
                 prev_h = next_h
+        elif self.cell_type == 'lstm':
+            h0, cache_affine_transformation = affine_forward(features, W_proj, b_proj)
+            H = W_proj.shape[1]
+            x = [self._start] * N
+            prev_h = h0
+            prev_c = np.zeros(prev_h.shape)
+            captions[:,0] = x
+            for t in range(1,max_length):
+                word_embed, cache_word_embed = word_embedding_forward(x, W_embed)
+                # next_h: (N, H)
+                next_h, next_c, cache_word_embed = lstm_step_forward(word_embed, prev_h, prev_c, Wx, Wh, b)
+                # h_affine: (N, V)
+                h_affine, cache_h_affine = affine_forward(next_h, W_vocab, b_vocab)
+                captions[:,t] = np.argmax(h_affine, axis = 1)
+                x = np.argmax(h_affine, axis = 1)
+                prev_h = next_h
+                prev_c = next_c
 
-#         affine, cache_affine = affine_forward(features, W_proj, b_proj)
-#         prev_h = affine
-#         captions[:,0] = self._start
-#         x = [self._start] * N
-#         if self.cell_type == 'lstm':
-#             prev_c = np.zeros(prev_h.shape)
-#         # for each step
-#         for t in range(1,max_length):
-#             # word embed
-#             embed, chahe_embed = word_embedding_forward(x, W_embed)
-#             # rnn step
-#             if self.cell_type == 'rnn':
-#                 next_h, cache = rnn_step_forward(embed, prev_h, Wx, Wh, b)
-#             elif self.cell_type == 'lstm':
-#                 next_h, next_c, cache = lstm_step_forward(embed, prev_h, prev_c, Wx, Wh, b)
-#                 prev_c = next_c
-#             prev_h = next_h
-#             # affine
-#             h_affine, cache_h_affine = affine_forward(next_h, W_vocab, b_vocab)
-#             # max
-#             x = np.argmax(h_affine, axis=1)
-#             captions[:,t] = x
-        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
